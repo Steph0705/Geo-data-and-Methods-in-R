@@ -510,7 +510,7 @@ sp_predictors <- list()
 sp_predictors[[sp1]] <- NULL
 sp_predictors[[sp2]] <- NULL
 
-# Results
+# Task 1 Current SDM Results
 sdm_results <- run_current_sdm(sp1, sp2, "Europe", sp_predictors)
 my_maps <- sdm_results$maps
 my_results <- lapply(sdm_results$models, summary)
@@ -546,7 +546,7 @@ calculate_and_map_overlap <- function(species1, species2, sdm_results) {
   sp2_bin <- sdm_results$maps[[species2]]$binary_map
   
   
-  # -1.2- Calculate the degree of overlap (intersection/union)
+  # -1.2- Calculate the degree of overlap (intersection/union) ---
   
   # Intersection (both species present)
   overlap_rast <- sp1_bin & sp2_bin
@@ -556,20 +556,63 @@ calculate_and_map_overlap <- function(species1, species2, sdm_results) {
   
   # Count pixels using terra::global() - na.rm = TRUE ignores NAs/ocean points
   overlap_pixels <- terra::global(overlap_rast, "sum", na.rm = TRUE)[1, 1]
-  union_pixels <- terra::global(overlap_pixels, "sum", na.rm = TRUE)[1, 1]
+  union_pixels <- terra::global(union_rast, "sum", na.rm = TRUE)[1, 1]
   
   # Calculate percentage of overlap 
   overlap_metric <- (overlap_pixels / union_pixels) * 100
   
-  cat("Degree of overlap of", species1, "and", species2, ":", round(overlap_metrix, 2), "%\n")
+  cat("Degree of overlap of", species1, "and", species2, ":", round(overlap_metric, 2), "%\n")
   
   
+  # -2- Plot the overlap ---------------------------------------------------------------------------------------
+  
+  # -2.1- Create a combined map for plotting ---
+  # Binary raster only gives 0/1 - sp1 + (sp2 * 2) gives 4 distinct values
+  
+  # Possible values:
+  # 0 = None (0 + 0)
+  # 1 = Species 1 ONLY (1 + 0)
+  # 2 = Species 2 ONLY (0 + 2)
+  # 3 = BOTH (1 + 2)
+  combined_map <- sp1_bin + (sp2_bin * 2)
+  
+  # Ensure areas with value 0 appear as no colour
+  combined_map[combined_map == 0] <- NA
+  
+  
+  # -2.2- Plot the map ---
+  # 3-colour palette as value 0 already assigned no colour
+  plot(combined_map,
+       main = paste("Distribution Overlap:", species1, "&", species2),
+       col = c("blue", "yellow", "red"),
+       legend = FALSE)
+  
+  # Add legend
+  legend("bottomleft",
+         legend = c(paste(species1, "only"),
+                    paste(species2, "only"),
+                    "Overlap (Both)"),
+         fill = c("blue", "yellow", "red"),
+         bty = "n",
+         cex = 0.8)
+  
+  message("Degree of overlap calculated and mapped successfully. Returning metrics...")
+  return(list(
+    metric = overlap_metric,
+    overlap_raster = overlap_rast,
+    combined_raster = combined_map))
   
 }
 
 
 
 
+# ==============================================================================================================
+#                                              --- TASK 2 EXECUTION ---
+# ==============================================================================================================
+
+# Task 2 Distribution Overlap  Results
+overlap_results <- calculate_and_map_overlap(sp1, sp2, sdm_results)
 
 
 
