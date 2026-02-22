@@ -539,6 +539,31 @@ print(my_results)
 # ==============================================================================================================
 calculate_and_map_overlap <- function(species1, species2, sdm_results) {
   
+  # -1- Calculating overlap of Species 1 and Species 2 using binary maps ---------------------------------------
+  
+  # -1.1- Extract binary rasters from Task 1 predict_and_map() function ---
+  sp1_bin <- sdm_results$maps[[species1]]$binary_map
+  sp2_bin <- sdm_results$maps[[species2]]$binary_map
+  
+  
+  # -1.2- Calculate the degree of overlap (intersection/union)
+  
+  # Intersection (both species present)
+  overlap_rast <- sp1_bin & sp2_bin
+  
+  # Union (at least one species is present)
+  union_rast <- sp1_bin | sp2_bin
+  
+  # Count pixels using terra::global() - na.rm = TRUE ignores NAs/ocean points
+  overlap_pixels <- terra::global(overlap_rast, "sum", na.rm = TRUE)[1, 1]
+  union_pixels <- terra::global(overlap_pixels, "sum", na.rm = TRUE)[1, 1]
+  
+  # Calculate percentage of overlap 
+  overlap_metric <- (overlap_pixels / union_pixels) * 100
+  
+  cat("Degree of overlap of", species1, "and", species2, ":", round(overlap_metrix, 2), "%\n")
+  
+  
   
 }
 
