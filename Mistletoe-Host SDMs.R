@@ -541,6 +541,8 @@ calculate_and_map_overlap <- function(species1, species2, sdm_results) {
   
   # -1- Calculating overlap of Species 1 and Species 2 using binary maps ---------------------------------------
   
+  message("Calculating degree of overlap for ", species1, " and ", species2, "...")
+  
   # -1.1- Extract binary rasters from Task 1 predict_and_map() function ---
   sp1_bin <- sdm_results$maps[[species1]]$binary_map
   sp2_bin <- sdm_results$maps[[species2]]$binary_map
@@ -577,22 +579,28 @@ calculate_and_map_overlap <- function(species1, species2, sdm_results) {
   combined_map <- sp1_bin + (sp2_bin * 2)
   
   # Ensure areas with value 0 appear as no colour
-  combined_map[combined_map == 0] <- NA
+  # combined_map[combined_map == 0] <- NA       <-- REMOVED 23/02/2026
   
   
   # -2.2- Plot the map ---
-  # 3-colour palette as value 0 already assigned no colour
+  # Define 4-colour okabe-ito palette assigned to values 0-3
+  safe_palette <- c("grey80",   # 0
+                    "#56B4E9",  # 1
+                    "#D55E00",  # 2
+                    "#009E73")  # 3
+  
   plot(combined_map,
        main = paste("Distribution Overlap:", species1, "&", species2),
-       col = c("blue", "yellow", "red"),
+       col = safe_palette,
        legend = FALSE)
   
   # Add legend
   legend("bottomleft",
-         legend = c(paste(species1, "only"),
+         legend = c("Neither",
+                    paste(species1, "only"),
                     paste(species2, "only"),
                     "Overlap (Both)"),
-         fill = c("blue", "yellow", "red"),
+         fill = safe_palette,
          bty = "n",
          cex = 0.8)
   
