@@ -59,8 +59,10 @@ REGION_PRESETS <- list(
 )
 
 
+
 ################################################################################################################
 ################################################################################################################
+
 
 
 # ==============================================================================================================
@@ -523,8 +525,10 @@ print(sdm_results$stats)
 print(my_results)
 
 
+
 ################################################################################################################
 ################################################################################################################
+
 
 
 # ==============================================================================================================
@@ -535,6 +539,11 @@ print(my_results)
 # devising and calculating a metric for the degree of overlap between their ranges.
 # Task 2 will be converted into one general function that can take any Species 1 and 2, and the
 # results outputed from the previous task.
+
+# The main steps of this task involves the following steps:
+# -- 1: Store the binary map outputs from Task 1
+# -- 2: Calculate the degree of overlap using principles from probability (Intersect/Union)
+# -- 3: Plot the degree of overlap in region using colour-blind friendly palette.
 
 
 # MAIN TASK 2 FUNCTION - DISTRIBUTION OVERLAP METRIC AND PLOT
@@ -621,11 +630,33 @@ calculate_and_map_overlap <- function(species1, species2, sdm_results) {
 
 
 # ==============================================================================================================
-#                                              --- TASK 2 EXECUTION ---
+#                                               --- TASK 2 EXECUTION ---
 # ==============================================================================================================
 
 # Task 2 Distribution Overlap  Results
 overlap_results <- calculate_and_map_overlap(sp1, sp2, sdm_results)
+
+
+
+################################################################################################################
+################################################################################################################
+
+
+
+# ==============================================================================================================
+#                                              --- TASK 3 ---
+# ==============================================================================================================
+
+# This section involves using a General Linear Model (GLM) to test whether the distribution
+# of Species 1 at present is dependent on the distribution of Species 2.
+# Task 3 will also be converted into a general function that takes the models and data
+# output from Task 1 to execute the task for any 2 species.
+
+# The main steps of this takes involves the following steps:
+# -- 1: Take the training data for Species 1
+# -- 2: Take continuous suitability map of Species 2 to extract probability of it
+#       occurring at each Species 1 point.
+# -- 3: Run glm() for Species 1 using bioclim variables AND Species 2 suitability.
 
 
 
