@@ -59,6 +59,10 @@ REGION_PRESETS <- list(
 )
 
 
+################################################################################################################
+################################################################################################################
+
+
 # ==============================================================================================================
 #                                              --- TASK 1 ---
 # ==============================================================================================================
@@ -74,7 +78,7 @@ REGION_PRESETS <- list(
 # -- 1: Download and clean occurrence, ocean, and climate data.
 # -- 2 (OPTIONAL): Pick bioclimatic variables based on multicollinearity and stepwise selection.
 # -- 3: Prepare presence and background/pseudoabsence points, train/test data, fit GLM, and evaluate.
-# -- 4: Predict the habitat suitability across the region and map this.
+# -- 4: Predict the habitat suitability for both species separately across the region and map this.
 
 
 # HELPER FUNCTION 1 - DOWNLOAD & CLEAN DATA
@@ -118,7 +122,6 @@ get_species_data <- function(sp_name, region, region_bounds, ocean_vect, bioclim
                   "(Found:", nrow(coords_region), "- Minimum required: 50)"))
     return(NULL)
   }
-  
   cat("Records in ", region, ":", nrow(coords_region), "\n")
   
   
@@ -179,7 +182,6 @@ get_species_data <- function(sp_name, region, region_bounds, ocean_vect, bioclim
                   "in", region, ". Only", nrow(species_data), "valid points found."))
     return(NULL)
   }
-  
   cat("Final number of dataset rows:", nrow(species_data), "\n")
   
   # Save processed data
@@ -198,6 +200,8 @@ get_species_data <- function(sp_name, region, region_bounds, ocean_vect, bioclim
 # HELPER FUNCTION 2 - BIOCLIMATIC VARIABLE SELECTION
 # ==============================================================================================================
 # Function which takes a presence/background points + bioclim vars 1-19 to find most parsimonious mode
+# The user could run this function, and then pick what variables make most sense based on previous
+# knowledge.
 bioclim_selection <- function(input_data) {
   
   # Only look at 'bio' columns for correlation
@@ -212,14 +216,14 @@ bioclim_selection <- function(input_data) {
   # Find the most highly correlated variables - these will be removed
   high_cor_vars <- findCorrelation(cor_matrix, cutoff = 0.7)
   
-  # Store names of vweakly correlated variables to keep
+  # Store names of weakly correlated variables to keep
   if (length(high_cor_vars) > 0) {
     clean_vars <- bio_cols[-high_cor_vars]
   } else {
     clean_vars <- bio_cols
   }
   
-  # -2- Stepwise AIC selection ---------------------------------------------------------------------------------
+  # -2- Stepwise BIC selection ---------------------------------------------------------------------------------
   
   # Fit a model using only weakly correlated variables
   form_start <- as.formula(paste("presence ~", paste(clean_vars, collapse = "+")))
@@ -270,7 +274,7 @@ fit_eval_glm <- function(species_data, bioclim_crop, user_predictors = NULL) {
   
   cat("Background points after NAs removed:", nrow(background_data), "\n")
   
-  # Format presence data (Presence = 1)
+  # Format presence data
   presence_data <- species_data %>% mutate(presence = 1)
   
   
@@ -332,7 +336,8 @@ fit_eval_glm <- function(species_data, bioclim_crop, user_predictors = NULL) {
     model = sdm_model, 
     vars = current_vars, 
     auc = eval_res@auc,
-    train_data = train_data))
+    train_data = train_data,
+    eval_res = eval_res))
 }
 # ==============================================================================================================
 
@@ -341,7 +346,7 @@ fit_eval_glm <- function(species_data, bioclim_crop, user_predictors = NULL) {
 
 # HELPER FUNCTION 4 - PREDICTION & MAPPING SDM
 # ==============================================================================================================
-predict_and_map <- function(sdm_model, bioclim_crop, current_vars, sp_name, species_data) {
+predict_and_map <- function(sdm_model, bioclim_crop, current_vars, sp_name, species_data, eval_res) {
   
   # -1- Predict and Map ----------------------------------------------------------------------------------------
   
@@ -350,30 +355,40 @@ predict_and_map <- function(sdm_model, bioclim_crop, current_vars, sp_name, spec
     stop("ERROR: Predictor layers not found in bioclim_crop.")
   }
   
-  # Predict suitability across the full study extent
+  # Predict probability of occurrence across the full study extent
   prediction <- terra::predict(bioclim_crop[[current_vars]], sdm_model, type = "response")
+  names(prediction) <- "suitability"
   
-  # Plot
-  plot(prediction, main = paste("SDM:", sp_name))
+  # Plot continuous suitability map
+  plot(prediction, main = paste("Predicted suitability:", sp_name))
   
   # Re-create vector from data just for plotting points
   # (We do this because we can't easily pass the vector object from Helper 1 to Helper 4)
-  if(nrow(species_data) > 0) {
-    species_vect_plot <- vect(species_data, geom=c("lon", "lat"), crs=crs(prediction))
-    points(species_vect_plot, pch = 16, cex = 0.5, col = "black")
-  }
+  species_vect_plot <- vect(species_data, geom=c("lon", "lat"), crs=crs(prediction))
+  points(species_vect_plot, pch = 16, cex = 0.5, col = "black")
   
-  message("Completed generation of current SDM for ", sp_name)
+  # Calculate threshold using evaluation results so that probability -> presence/absence
+  thr <- dismo::threshold(eval_res, 'prevalence')
+  
+  # Create binary Presence/Absence map
+  # This will be needed for later tasks to calculate overlap.
+  prediction_pa <- prediction > thr
+  names(prediction_pa) <- "presence_absence"
+  
+  message("Completed generation of current SDMs for ", sp_name)
   cat("-----------------------------------------------------------------------\n")
   
-  return(prediction)
+  return(list(
+    continuous_map = prediction,
+    binary_map = prediction_pa,
+    threshold = thr))
 }
 # ==============================================================================================================
 
 
 
 
-# MAIN FUNCTION - CURRENT SDM GENERATION
+# MAIN TASK 1 FUNCTION - CURRENT SDM GENERATION
 # ==============================================================================================================
 # Function generates current SDMs for a pair of species in a user-defined region
 run_current_sdm <- function(species1, species2, region, predictor_list) {
@@ -433,10 +448,10 @@ run_current_sdm <- function(species1, species2, region, predictor_list) {
     
     message(paste("Processing:", sp_name, "in", region))
     
-    # --- STEP 1: Download, clean, filter ocean, crop climate, and extract points ---
+    # -- STEP 1: Download, clean, filter ocean, crop climate, and extract points ---
     prepared_data <- get_species_data(sp_name, region, bounds, ocean, bioclim_global)
     
-    # Skips species if there is an error or low sample size
+    # Skip species if there is an error or low sample size
     if (is.null(prepared_data)) next 
     
     # Extract the specific outputs we need for the next steps
@@ -444,20 +459,21 @@ run_current_sdm <- function(species1, species2, region, predictor_list) {
     clim_cropped <- prepared_data$clim_crop
     
     
-    # --- STEP 2: Generate background points, split data, select bioclim, fit GLM ---
+    # -- STEP 2: Generate background points, split data, select bioclim, fit GLM ---
     glm_results <- fit_eval_glm(sp_data, clim_cropped, predictor_list[[sp_name]])
     
     # Extract outputs
     final_model <- glm_results$model
     final_vars  <- glm_results$vars
     final_auc   <- glm_results$auc
+    final_eval  <- glm_results$eval_res
     
     
-    # --- STEP 3: Predict the model onto the raster and creates the plot ---
-    suitability_map <- predict_and_map(final_model, clim_cropped, final_vars, sp_name, sp_data)
+    # -- STEP 3: Predict the model onto the raster and create the plot ---
+    suitability_map <- predict_and_map(final_model, clim_cropped, final_vars, sp_name, sp_data, final_eval)
     
     
-    # --- STEP 4: Store Results ---
+    # -- STEP 4: Store Results ---
     current_sdm_maps[[sp_name]] <- suitability_map
     current_models[[sp_name]] <- glm_results$model
     current_data[[sp_name]] <- glm_results$train_data
@@ -484,6 +500,7 @@ run_current_sdm <- function(species1, species2, region, predictor_list) {
 
 
 
+
 # ==============================================================================================================
 #                                               --- TASK 1 EXECUTION ---
 # ==============================================================================================================
@@ -497,20 +514,118 @@ sp_predictors <- list()
 sp_predictors[[sp1]] <- NULL
 sp_predictors[[sp2]] <- NULL
 
-# Results
+# Task 1 Current SDM Results
 sdm_results <- run_current_sdm(sp1, sp2, "Europe", sp_predictors)
 my_maps <- sdm_results$maps
+my_results <- lapply(sdm_results$models, summary)
 
 print(sdm_results$stats)
+print(my_results)
+
+
+################################################################################################################
+################################################################################################################
+
+
+# ==============================================================================================================
+#                                              --- TASK 2 ---
+# ==============================================================================================================
+
+# This section involves plotting the overlap in distribution of Species 1 and Species 2, and
+# devising and calculating a metric for the degree of overlap between their ranges.
+# Task 2 will be converted into one general function that can take any Species 1 and 2, and the
+# results outputed from the previous task.
+
+
+# MAIN TASK 2 FUNCTION - DISTRIBUTION OVERLAP METRIC AND PLOT
+# ==============================================================================================================
+calculate_and_map_overlap <- function(species1, species2, sdm_results) {
+  
+  # -1- Calculating overlap of Species 1 and Species 2 using binary maps ---------------------------------------
+  
+  message("Calculating degree of overlap for ", species1, " and ", species2, "...")
+  
+  # -1.1- Extract binary rasters from Task 1 predict_and_map() function ---
+  sp1_bin <- sdm_results$maps[[species1]]$binary_map
+  sp2_bin <- sdm_results$maps[[species2]]$binary_map
+  
+  
+  # -1.2- Calculate the degree of overlap (intersection/union) ---
+  
+  # Intersection (both species present)
+  overlap_rast <- sp1_bin & sp2_bin
+  
+  # Union (at least one species is present)
+  union_rast <- sp1_bin | sp2_bin
+  
+  # Count pixels using terra::global() - na.rm = TRUE ignores NAs/ocean points
+  overlap_pixels <- terra::global(overlap_rast, "sum", na.rm = TRUE)[1, 1]
+  union_pixels <- terra::global(union_rast, "sum", na.rm = TRUE)[1, 1]
+  
+  # Calculate percentage of overlap 
+  overlap_metric <- (overlap_pixels / union_pixels) * 100
+  
+  cat("Degree of overlap of", species1, "and", species2, ":", round(overlap_metric, 2), "%\n")
+  
+  
+  # -2- Plot the overlap ---------------------------------------------------------------------------------------
+  
+  # -2.1- Create a combined map for plotting ---
+  # Binary raster only gives 0/1 - sp1 + (sp2 * 2) gives 4 distinct values
+  
+  # Possible values:
+  # 0 = None (0 + 0)
+  # 1 = Species 1 ONLY (1 + 0)
+  # 2 = Species 2 ONLY (0 + 2)
+  # 3 = BOTH (1 + 2)
+  combined_map <- sp1_bin + (sp2_bin * 2)
+  
+  # Ensure areas with value 0 appear as no colour
+  # combined_map[combined_map == 0] <- NA       <-- REMOVED 23/02/2026
+  
+  
+  # -2.2- Plot the map ---
+  # Define 4-colour okabe-ito palette assigned to values 0-3
+  safe_palette <- c("grey80",   # 0
+                    "#56B4E9",  # 1
+                    "#D55E00",  # 2
+                    "#009E73")  # 3
+  
+  plot(combined_map,
+       main = paste("Distribution Overlap:", species1, "&", species2),
+       col = safe_palette,
+       legend = FALSE)
+  
+  # Add legend below the plot
+  legend("bottom",
+         inset = c(0, -0.20),
+         legend = c("Neither",
+                    paste(species1, "only"),
+                    paste(species2, "only"),
+                    "Overlap (Both)"),
+         fill = safe_palette,
+         bty = "n",
+         cex = 0.8,
+         xpd = TRUE,
+         ncol = 2)
+  
+  message("Degree of overlap calculated and mapped successfully. Returning metrics...")
+  return(list(
+    metric = overlap_metric,
+    overlap_raster = overlap_rast,
+    combined_raster = combined_map))
+  
+}
 
 
 
 
+# ==============================================================================================================
+#                                              --- TASK 2 EXECUTION ---
+# ==============================================================================================================
 
-
-
-
-
+# Task 2 Distribution Overlap  Results
+overlap_results <- calculate_and_map_overlap(sp1, sp2, sdm_results)
 
 
 
