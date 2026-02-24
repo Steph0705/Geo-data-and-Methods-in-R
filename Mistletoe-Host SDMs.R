@@ -1,3 +1,6 @@
+# Stephanie Pearce
+# Data accessed: 24/02/2026 
+
 # ==============================================================================================================
 #                                               --- START-UP ---
 # ==============================================================================================================
@@ -59,8 +62,10 @@ REGION_PRESETS <- list(
 )
 
 
+
 ################################################################################################################
 ################################################################################################################
+
 
 
 # ==============================================================================================================
@@ -511,20 +516,22 @@ sp2 <- "Quercus petraea"
 
 # Define chosen bioclimatic variables for each species - USER CHANGE (IF DESIRED)
 sp_predictors <- list()
-sp_predictors[[sp1]] <- NULL
-sp_predictors[[sp2]] <- NULL
+sp_predictors[[sp1]] <- c("bio3", "bio8", "bio14", "bio15")
+sp_predictors[[sp2]] <- c("bio3", "bio11", "bio15", "bio16")
 
 # Task 1 Current SDM Results
 sdm_results <- run_current_sdm(sp1, sp2, "Europe", sp_predictors)
 my_maps <- sdm_results$maps
-my_results <- lapply(sdm_results$models, summary)
+model_summary <- lapply(sdm_results$models, summary)
 
 print(sdm_results$stats)
-print(my_results)
+print(model_summary)
+
 
 
 ################################################################################################################
 ################################################################################################################
+
 
 
 # ==============================================================================================================
@@ -535,6 +542,11 @@ print(my_results)
 # devising and calculating a metric for the degree of overlap between their ranges.
 # Task 2 will be converted into one general function that can take any Species 1 and 2, and the
 # results outputed from the previous task.
+
+# The main steps of this task involves the following steps:
+# -- 1: Store the binary map outputs from Task 1
+# -- 2: Calculate the degree of overlap using principles from probability (Intersect/Union)
+# -- 3: Plot the degree of overlap in region using colour-blind friendly palette.
 
 
 # MAIN TASK 2 FUNCTION - DISTRIBUTION OVERLAP METRIC AND PLOT
@@ -621,7 +633,7 @@ calculate_and_map_overlap <- function(species1, species2, sdm_results) {
 
 
 # ==============================================================================================================
-#                                              --- TASK 2 EXECUTION ---
+#                                               --- TASK 2 EXECUTION ---
 # ==============================================================================================================
 
 # Task 2 Distribution Overlap  Results
@@ -629,11 +641,84 @@ overlap_results <- calculate_and_map_overlap(sp1, sp2, sdm_results)
 
 
 
+################################################################################################################
+################################################################################################################
+
+
+
+# ==============================================================================================================
+#                                              --- TASK 3 ---
+# ==============================================================================================================
+
+# This section involves using a General Linear Model (GLM) to test whether the distribution
+# of Species 1 at present is dependent on the distribution of Species 2.
+# Task 3 will also be converted into a general function that takes the models and data
+# output from Task 1 to execute the task for any 2 species.
+
+# The main steps of this takes involves the following steps:
+# -- 1: Take the training data for Species 1
+# -- 2: Take continuous suitability map of Species 2 to extract probability of it
+#       occurring at each Species 1 point.
+# -- 3: Run glm() for Species 1 using bioclim variables AND Species 2 suitability.
+
+
+# MAIN TASK 3 FUNCTION - DEPENDENCE OF SPECIES 1 ON SPECIES 2
+# ==============================================================================================================
+test_species_dependence <- function(species1, species2, sdm_results) {
+  
+  # -1- Extract Species 2 suitability values from Species 1 points ---------------------------------------------
+  
+  # Get dataset used for Species 1 model
+  sp1_data <- sdm_results$data[[species1]]
+  
+  # Get cont. suitability map for Species 2
+  sp2_map <- sdm_results$maps[[species2]]$continuous_map
+  
+  
+  # -1.1- Extract suitability values ---
+  # Create SpatVector for Species 1 points
+  sp1_pts <- vect(sp1_data, geom = c("lon", "lat") , crs = crs(sp2_map))   # Ensure crs matches
+  
+  # Extract values
+  sp2_vals <- terra::extract(sp2_map, sp1_pts)[, 2]
+  
+  # Add values as new predictor variable to Species 1's dataset
+  sp1_data$sp2_suitability <- sp2_vals
+  
+  
+  # -2- Fit the biological GLM ---------------------------------------------------------------------------------
+  
+  # Extract climate variables used in original Species 1 GLM
+  sp1_vars <- attr(terms(sdm_results$models[[species1]]), "term.labels")
+  
+  # Dynamically build GLM formula: presence ~ biox + bioy + bioz + sp2_suitability
+  formula_str <- paste("presence ~", paste(sp1_vars, collapse = " + "), "+ sp2_suitability")
+  model_formula <- as.formula(formula_str)
+  
+  # Fit the model
+  biotic_glm <- glm(model_formula, data = sp1_data, family = binomial)
+  
+  return(biotic_glm)
+  
+}
 
 
 
 
+# ==============================================================================================================
+#                                               --- TASK 3 EXECUTION ---
+# ==============================================================================================================
 
+# Task 3 Dependence Model Results
+dependence_model <- test_species_dependence(sp1, sp2, sdm_results)
+
+biotic_model_sum <- summary(dependence_model)
+print(biotic_model_sum)
+
+
+
+################################################################################################################
+################################################################################################################
 
 
 
