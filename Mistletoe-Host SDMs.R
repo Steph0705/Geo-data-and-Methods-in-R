@@ -521,7 +521,7 @@ sp_predictors[[sp2]] <- c("bio3", "bio11", "bio15", "bio16")
 
 # Task 1 Current SDM Results
 sdm_results <- run_current_sdm(sp1, sp2, "Europe", sp_predictors)
-my_maps <- sdm_results$maps
+current_maps <- sdm_results$maps
 model_summary <- lapply(sdm_results$models, summary)
 
 print(sdm_results$stats)
@@ -722,7 +722,16 @@ print(biotic_model_sum)
 
 
 
+# ==============================================================================================================
+#                                              --- TASK 4 ---
+# ==============================================================================================================
 
+# This section involves  predicting the future distribution of both Species 1 and Species 2
+# separately using the CMIP6 data for future climate, and how the degree of overlap in ranges
+# will change over time.
+# Once again, this task will be functionalised so that predicting the future distribution
+# for any two species can be done - it will utilise functions with Task 1 (current SDM
+# generation) and Task 2 (distribution overlap).
 
 
 
