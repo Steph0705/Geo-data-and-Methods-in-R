@@ -1,3 +1,6 @@
+# Stephanie Pearce
+# Data accessed: 24/02/2026 
+
 # ==============================================================================================================
 #                                               --- START-UP ---
 # ==============================================================================================================
@@ -513,16 +516,16 @@ sp2 <- "Quercus petraea"
 
 # Define chosen bioclimatic variables for each species - USER CHANGE (IF DESIRED)
 sp_predictors <- list()
-sp_predictors[[sp1]] <- NULL
-sp_predictors[[sp2]] <- NULL
+sp_predictors[[sp1]] <- c("bio3", "bio8", "bio14", "bio15")
+sp_predictors[[sp2]] <- c("bio3", "bio11", "bio15", "bio16")
 
 # Task 1 Current SDM Results
 sdm_results <- run_current_sdm(sp1, sp2, "Europe", sp_predictors)
 my_maps <- sdm_results$maps
-my_results <- lapply(sdm_results$models, summary)
+model_summary <- lapply(sdm_results$models, summary)
 
 print(sdm_results$stats)
-print(my_results)
+print(model_summary)
 
 
 
@@ -659,12 +662,63 @@ overlap_results <- calculate_and_map_overlap(sp1, sp2, sdm_results)
 # -- 3: Run glm() for Species 1 using bioclim variables AND Species 2 suitability.
 
 
+# MAIN TASK 3 FUNCTION - DEPENDENCE OF SPECIES 1 ON SPECIES 2
+# ==============================================================================================================
+test_species_dependence <- function(species1, species2, sdm_results) {
+  
+  # -1- Extract Species 2 suitability values from Species 1 points ---------------------------------------------
+  
+  # Get dataset used for Species 1 model
+  sp1_data <- sdm_results$data[[species1]]
+  
+  # Get cont. suitability map for Species 2
+  sp2_map <- sdm_results$maps[[species2]]$continuous_map
+  
+  
+  # -1.1- Extract suitability values ---
+  # Create SpatVector for Species 1 points
+  sp1_pts <- vect(sp1_data, geom = c("lon", "lat") , crs = crs(sp2_map))   # Ensure crs matches
+  
+  # Extract values
+  sp2_vals <- terra::extract(sp2_map, sp1_pts)[, 2]
+  
+  # Add values as new predictor variable to Species 1's dataset
+  sp1_data$sp2_suitability <- sp2_vals
+  
+  
+  # -2- Fit the biological GLM ---------------------------------------------------------------------------------
+  
+  # Extract climate variables used in original Species 1 GLM
+  sp1_vars <- attr(terms(sdm_results$models[[species1]]), "term.labels")
+  
+  # Dynamically build GLM formula: presence ~ biox + bioy + bioz + sp2_suitability
+  formula_str <- paste("presence ~", paste(sp1_vars, collapse = " + "), "+ sp2_suitability")
+  model_formula <- as.formula(formula_str)
+  
+  # Fit the model
+  biotic_glm <- glm(model_formula, data = sp1_data, family = binomial)
+  
+  return(biotic_glm)
+  
+}
 
 
 
 
+# ==============================================================================================================
+#                                               --- TASK 3 EXECUTION ---
+# ==============================================================================================================
+
+# Task 3 Dependence Model Results
+dependence_model <- test_species_dependence(sp1, sp2, sdm_results)
+
+biotic_model_sum <- summary(dependence_model)
+print(biotic_model_sum)
 
 
+
+################################################################################################################
+################################################################################################################
 
 
 
