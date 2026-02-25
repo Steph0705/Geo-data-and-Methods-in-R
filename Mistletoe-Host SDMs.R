@@ -6,23 +6,23 @@
 # ==============================================================================================================
 
 
-# Install packages for spatial data mapping and handling
-install.packages(c(
-  "dplyr",
-  "ggplot2",
-  "sysfonts",
-  "showtext",
-  "here",
-  "terra", 
-  "geodata", 
-  "rnaturalearth", 
-  "rnaturalearthdata",
-  "dismo", 
-  "tidyverse", 
-  "rgbif", 
-  "raster",
-  "caret"
-))
+# UNCOMMENT IF RENV NOT POSSIBLE
+#install.packages(c(
+#  "dplyr",
+#  "ggplot2",
+#  "sysfonts",
+#  "showtext",
+#  "here",
+#  "terra", 
+#  "geodata", 
+#  "rnaturalearth", 
+#  "rnaturalearthdata",
+##  "dismo", 
+#  "tidyverse", 
+#  "rgbif", 
+#  "raster",
+#  "caret"
+#))
 
 # Load packages
 library(dplyr)
@@ -37,6 +37,9 @@ library(rgbif)
 library(sysfonts)
 library(showtext)
 library(caret)
+
+# Ensure reproducibility with random sampling
+set.seed(123)
 
 # Create folders 
 folders <- c("data/raw", "data/processed", "outputs/maps")
@@ -262,7 +265,6 @@ fit_eval_glm <- function(species_data, bioclim_crop, user_predictors = NULL) {
   bg_n <- max(1000, nrow(species_data))
   
   # Sample random points from the first layer of the cropped climate data
-  set.seed(123)
   bg_pts <- spatSample(bioclim_crop[[1]], size = bg_n, method = "random", 
                        na.rm = TRUE, as.points = TRUE, values = FALSE)
   
@@ -813,6 +815,9 @@ run_future_sdm <- function(species1, species2, region, sdm_results) {
     future_maps[[sp_name]] <- list(
       continuous_map = future_pred,
       binary_map = future_bin)
+    
+    message("Completed generation of current and future SDMs for ", sp_name)
+    cat("-----------------------------------------------------------------------\n")
     
   }
   
