@@ -6,23 +6,23 @@
 # ==============================================================================================================
 
 
-# Install packages for spatial data mapping and handling
-install.packages(c(
-  "dplyr",
-  "ggplot2",
-  "sysfonts",
-  "showtext",
-  "here",
-  "terra", 
-  "geodata", 
-  "rnaturalearth", 
-  "rnaturalearthdata",
-  "dismo", 
-  "tidyverse", 
-  "rgbif", 
-  "raster",
-  "caret"
-))
+# UNCOMMENT IF RENV NOT POSSIBLE
+#install.packages(c(
+#  "dplyr",
+#  "ggplot2",
+#  "sysfonts",
+#  "showtext",
+#  "here",
+#  "terra", 
+#  "geodata", 
+#  "rnaturalearth", 
+#  "rnaturalearthdata",
+##  "dismo", 
+#  "tidyverse", 
+#  "rgbif", 
+#  "raster",
+#  "caret"
+#))
 
 # Load packages
 library(dplyr)
@@ -37,6 +37,9 @@ library(rgbif)
 library(sysfonts)
 library(showtext)
 library(caret)
+
+# Ensure reproducibility with random sampling
+set.seed(123)
 
 # Create folders 
 folders <- c("data/raw", "data/processed", "outputs/maps")
@@ -262,7 +265,6 @@ fit_eval_glm <- function(species_data, bioclim_crop, user_predictors = NULL) {
   bg_n <- max(1000, nrow(species_data))
   
   # Sample random points from the first layer of the cropped climate data
-  set.seed(123)
   bg_pts <- spatSample(bioclim_crop[[1]], size = bg_n, method = "random", 
                        na.rm = TRUE, as.points = TRUE, values = FALSE)
   
@@ -521,7 +523,7 @@ sp_predictors[[sp2]] <- c("bio3", "bio11", "bio15", "bio16")
 
 # Task 1 Current SDM Results
 sdm_results <- run_current_sdm(sp1, sp2, "Europe", sp_predictors)
-my_maps <- sdm_results$maps
+current_maps <- sdm_results$maps
 model_summary <- lapply(sdm_results$models, summary)
 
 print(sdm_results$stats)
@@ -722,16 +724,125 @@ print(biotic_model_sum)
 
 
 
+# ==============================================================================================================
+#                                              --- TASK 4 ---
+# ==============================================================================================================
+
+# This section involves  predicting the future distribution of both Species 1 and Species 2
+# separately using the CMIP6 data for future climate, and how the degree of overlap in ranges
+# will change over time.
+# Once again, this task will be functionalised so that predicting the future distribution
+# for any two species can be done - it will utilise Task 1 (current SDM
+# generation) outputs and the function for Task 2 (distribution overlap).
+
+
+# MAIN TASK 4 FUNCTION - FUTURE DISTRIBUTION PREDICTION
+# ==============================================================================================================
+run_future_sdm <- function(species1, species2, region, sdm_results) {
+  
+  # -0- Get region bounds ---
+  if (!region %in% names(REGION_PRESETS)) {
+    stop("Region not found. Please choose from the preset list.")
+  }
+  region_bounds <- REGION_PRESETS[[region]]
+  
+  
+  # -1- Download and crop future climate data ------------------------------------------------------------------
+  
+  message("Downloading future climate data (CMIP6 CanESM5, SSP245, 2061-2080)...")
+  
+  future_clim <- cmip6_world(model = "CanESM5", var = "bio", ssp = "245", res = 10, 
+                        time = "2061-2080", path = here("data/raw"))
+  
+  # Standardise names so future layers are bio1 - bio19 exactly
+  names(future_clim) <- paste0("bio", 1:19)
+  
+  # Crop to region
+  region_ext <- ext(region_bounds[1], region_bounds[2], region_bounds[3], region_bounds[4])
+  future_crop <- crop(future_clim, region_ext)
+  
+  
+  # -2- Iterate future distribution prediction for both species ------------------------------------------------
+  
+  future_maps <- list()
+  
+  for (sp_name in c(species1, species2)) {
+    
+    message(paste("Predicting future distribution for:", sp_name))
+    
+    # -2.1- Prepare future maps ---
+    # Retrieve model, variables, and threshold from Task 1 model
+    sp_model <- sdm_results$models[[sp_name]]
+    sp_vars <- attr(terms(sp_model), "term.labels")
+    sp_thr <- sdm_results$maps[[sp_name]]$threshold
+    
+    # Predict future cont. suitability
+    future_pred <- terra::predict(future_crop[[sp_vars]], sp_model, type = "response")
+    names(future_pred) <- "future_suitability"
+    
+    # Convert to future binary (presence/absence) map
+    future_bin <- future_pred > sp_thr
+    names(future_bin) <- "future_presence"
+    
+    
+    # -2.2- Quantify current site range change ---
+    # Create SpatVector for Species 1 point
+    sp_data <- sdm_results$data[[sp_name]]
+    sp_vect <- vect(sp_data, geom = c("lon", "lat"), crs = crs(future_pred))
+    
+    # Extract present and future values at current site
+    cur_map <- sdm_results$maps[[sp_name]]$continuous_map
+    cur_vals <- terra::extract(cur_map, sp_vect)[, 2]
+    fu_vals <- terra::extract(future_pred, sp_vect)[, 2]
+    
+    cur_bin_site <- cur_vals >= sp_thr
+    fu_bin_site <- fu_vals >= sp_thr
+    
+    range_loss <- sum(cur_bin_site & !fu_bin_site, na.rm = TRUE)
+    range_gain <- sum(!cur_bin_site & fu_bin_site, na.rm = TRUE)
+    
+    cat("Current sites losing suitability:", range_loss, "\n")
+    cat("Current sites gaining suitability:", range_gain, "\n\n")
+    
+    
+    # -3- Plot comparison --------------------------------------------------------------------------------------
+    
+    par(mfrow = c(1, 2))
+    plot(cur_map, main = paste("Present suitability:", sp_name))
+    plot(future_pred, main = paste("Future suitability:", sp_name))
+    
+    # Store outputs
+    future_maps[[sp_name]] <- list(
+      continuous_map = future_pred,
+      binary_map = future_bin)
+    
+    message("Completed generation of current and future SDMs for ", sp_name)
+    cat("-----------------------------------------------------------------------\n")
+    
+  }
+  
+  # Reset plotting window
+  par(mfrow = c(1, 1))
+  
+  return(list(maps = future_maps))
+  
+}
 
 
 
 
+# ==============================================================================================================
+#                                               --- TASK 4 EXECUTION ---
+# ==============================================================================================================
 
+# Run future SDMs
+future_results <- run_future_sdm(sp1, sp2, "Europe", sdm_results)
 
+# Re-calculate present overlap for comparison
+overlap_present <- calculate_and_map_overlap(sp1, sp2, sdm_results)
 
-
-
-
+# Calculate future overlap
+overlap_future <- calculate_and_map_overlap(sp1, sp2, future_results)
 
 
 
