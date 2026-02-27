@@ -1,5 +1,5 @@
 # Stephanie Pearce
-# Data accessed: 24/02/2026 
+# Data accessed: 27/02/2026 
 
 # ==============================================================================================================
 #                                               --- START-UP ---
@@ -311,6 +311,13 @@ fit_eval_glm <- function(species_data, bioclim_crop, user_predictors = NULL) {
     message("Calculating most parsimonious model...")
     # Call function to check for multicollinearity and perform stepwise AIC selection
     current_vars <- bioclim_selection(train_data)
+    
+  } else {
+    # Collinearity check for manual variables
+    message("Running collinearity check on bioclimatic variables...")
+    cor_matrix <- cor(train_data[, current_vars], method = "spearman")
+    
+    print(round(cor_matrix, 2))
   }
   
   # [SAFETY CHECK] Check if any bioclim vars were actually stored
@@ -328,7 +335,7 @@ fit_eval_glm <- function(species_data, bioclim_crop, user_predictors = NULL) {
   sdm_model <- glm(model_formula, data = train_data, family = binomial)
   
   
-  # -1.4- Evaluate model ---
+  # -1.3- Evaluate model ---
   
   # Evaluate using held-out test data
   eval_res <- evaluate(
@@ -518,8 +525,8 @@ sp2 <- "Quercus petraea"
 
 # Define chosen bioclimatic variables for each species - USER CHANGE (IF DESIRED)
 sp_predictors <- list()
-sp_predictors[[sp1]] <- c("bio3", "bio8", "bio14", "bio15")
-sp_predictors[[sp2]] <- c("bio3", "bio11", "bio15", "bio16")
+sp_predictors[[sp1]] <- c("bio3", "bio5", "bio8", "bio14")
+sp_predictors[[sp2]] <- c( "bio6", "bio10", "bio12", "bio15")
 
 # Task 1 Current SDM Results
 sdm_results <- run_current_sdm(sp1, sp2, "Europe", sp_predictors)
@@ -545,7 +552,7 @@ print(model_summary)
 # Task 2 will be converted into one general function that can take any Species 1 and 2, and the
 # results outputed from the previous task.
 
-# The main steps of this task involves the following steps:
+# The main steps of this function involves the following:
 # -- 1: Store the binary map outputs from Task 1
 # -- 2: Calculate the degree of overlap using principles from probability (Intersect/Union)
 # -- 3: Plot the degree of overlap in region using colour-blind friendly palette.
@@ -657,7 +664,7 @@ overlap_results <- calculate_and_map_overlap(sp1, sp2, sdm_results)
 # Task 3 will also be converted into a general function that takes the models and data
 # output from Task 1 to execute the task for any 2 species.
 
-# The main steps of this takes involves the following steps:
+# The main steps of this takes involves the following:
 # -- 1: Take the training data for Species 1
 # -- 2: Take continuous suitability map of Species 2 to extract probability of it
 #       occurring at each Species 1 point.
@@ -734,6 +741,11 @@ print(biotic_model_sum)
 # Once again, this task will be functionalised so that predicting the future distribution
 # for any two species can be done - it will utilise Task 1 (current SDM
 # generation) outputs and the function for Task 2 (distribution overlap).
+
+# The main steps of this function involves the following:
+# -- 1: Download future climate data from CMIP6 and crop to user-chosen region.
+# -- 2: Iterate future distribution prediction for each species.
+# -- 3: Plot present vs. future suitability side-by-side.
 
 
 # MAIN TASK 4 FUNCTION - FUTURE DISTRIBUTION PREDICTION
@@ -846,11 +858,16 @@ overlap_future <- calculate_and_map_overlap(sp1, sp2, future_results)
 
 
 
+################################################################################################################
+################################################################################################################
 
 
 
+# ==============================================================================================================
+#                                              --- TASK 5 ---
+# ==============================================================================================================
 
-
+# 
 
 
 
