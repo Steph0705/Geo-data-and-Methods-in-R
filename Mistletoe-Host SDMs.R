@@ -6,49 +6,42 @@
 # ==============================================================================================================
 
 
-# UNCOMMENT IF RENV NOT POSSIBLE
-#install.packages(c(
-#  "dplyr",
-#  "ggplot2",
-#  "sysfonts",
-#  "showtext",
-#  "here",
-#  "terra",
-#  "tidyterra",
-#  "geodata", 
-#  "rnaturalearth", 
-#  "rnaturalearthdata",
-#  "dismo", 
-#  "tidyverse", 
-#  "rgbif", 
-#  "raster",
-#  "caret",
-#  "sf",
-#  "ggspatial"
-#))
+# -1- Define all required packages for SDM pipeline ---
+required_packages <-c(
+  "dplyr",
+  "ggplot2",
+  "sysfonts",
+  "showtext",
+  "here",
+  "terra",
+  "tidyterra",
+  "geodata", 
+  "rnaturalearth", 
+  "rnaturalearthdata",
+  "dismo", 
+  "tidyverse", 
+  "rgbif", 
+  "raster",
+  "caret",
+  "sf",
+  "ggspatial"
+)
 
-# Load packages
-library(dplyr)
-library(ggplot2)
-library(here)
-library(terra)
-library(tidyterra)
-library(geodata)
-library(rnaturalearth)
-library(dismo)
-library(tidyr)
-library(rgbif)
-library(sysfonts)
-library(showtext)
-library(raster)
-library(caret)
-library(sf)
-library(ggspatial)
+# Install all the packages the user is missing
+missing_packages <- required_packages[!(required_packages %in% installed.packages()[, "Package"])]
+if (length(missing_packages) > 0) {
+  message("Installing missing packages: ", paste(missing_packages, collapse = ", "))
+  install.packages(missing_packages, dependencies = TRUE)
+}
 
-# Ensure reproducibility with random sampling
+# Load all libraries
+lapply(required_packages, library, character.only = TRUE)
+
+
+# -2- Ensure reproducibility with random sampling ---
 set.seed(123)
 
-# Create folders 
+# -3- Create folders ---
 folders <- c("data/raw", "data/processed", "outputs/maps")
 for (f in folders) {
   dir.create(here(f), recursive = TRUE, showWarnings = FALSE)
