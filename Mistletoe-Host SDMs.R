@@ -889,17 +889,18 @@ make_pretty_map <- function(suitability_map,
                             add_rivers,
                             file_name = "publication_map.pdf") {
   
-  # Reproject raster onto user's chosen CRS
+  # -1- Prepare raster and country borders ---------------------------------------------------------------------
+  
   map_proj <- project(suitability_map, target_crs)
   map_ext <- ext(map_proj)
   
   # Download contextual basemaps
-  # Grab continent boundaries
   world_borders <- ne_countries(scale = 50, returnclass = "sf")
   world_borders_proj <- st_transform(world_borders, target_crs)
   
   
-  # Making map
+  # -2- Making pretty map --------------------------------------------------------------------------------------
+  
   # Set up google font Montserrat for clean look
   font_add_google(name = "Montserrat", family = "Montserrat")
   showtext_auto()
@@ -909,7 +910,7 @@ make_pretty_map <- function(suitability_map,
     geom_sf(data = world_borders_proj, fill = NA, color = "grey90", linewidth = 0.3) +
     geom_spatraster(data = map_proj)
   
-  # Add rivers if TRUE
+  # -2.1- Add rivers if TRUE ---
   if (add_rivers) {
     message("Downloading and adding river networks...")
     rivers <- ne_download(scale = 50, type = 'rivers_lake_centerlines',
@@ -920,7 +921,7 @@ make_pretty_map <- function(suitability_map,
   }
   
   
-  # Add aesthetics
+  # -2.2- Add aesthetics ---
   pretty_map <- pretty_map +
     scale_fill_viridis_c(
       option = colour_palette,
@@ -938,7 +939,7 @@ make_pretty_map <- function(suitability_map,
     coord_sf(xlim = c(map_ext[1], map_ext[2]),
              ylim = c(map_ext[3], map_ext[4]),
              expand = FALSE) +
-    # Add labels
+    # -2.3- Add labels ---
     labs(
       title = bquote("Predicted distribution of" ~ italic(.(species_name))),
       subtitle = paste("Projection:", target_crs),
@@ -969,7 +970,7 @@ make_pretty_map <- function(suitability_map,
       legend.text = element_text(size = 9, family = "Montserrat"),
     )
   
-  # Save map automatically
+  # -2.4- Save map automatically ---
   ggsave(here(file.path("outputs", "maps", file_name)), 
          pretty_map, 
          width = 7, height = 6, dpi = 300, bg = "white")
@@ -993,8 +994,8 @@ final_mistletoe_map <- make_pretty_map(
   mistletoe_present_map, 
   sp1,
   "EPSG:4326",
-  "inferno",
-  add_rivers = TRUE,
+  "inferno",    # e.g. viridis, plasma, inferno
+  add_rivers = TRUE,    # Set add_rivers to TRUE or FALSE for main river centrelines 
   "mistletoe_present_map.pdf")
 
 # View map
