@@ -35,7 +35,7 @@ if (length(missing_packages) > 0) {
 }
 
 # Load all libraries
-lapply(required_packages, library, character.only = TRUE)
+invisible(lapply(required_packages, library, character.only = TRUE))
 
 
 # -2- Ensure reproducibility with random sampling ---
