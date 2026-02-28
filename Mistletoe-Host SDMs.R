@@ -880,6 +880,125 @@ overlap_future <- calculate_and_map_overlap(sp1, sp2, future_results)
 # and whether they want to add rivers/streams or not.
 
 
+# MAIN TASK 5 FUNCTION - PUBLICATION-READY MAPS
+# ==============================================================================================================
+make_pretty_map <- function(suitability_map, 
+                            species_name, 
+                            target_crs, 
+                            colour_palette, 
+                            add_rivers,
+                            file_name = "publication_map.pdf") {
+  
+  # Reproject raster onto user's chosen CRS
+  map_proj <- project(suitability_map, target_crs)
+  map_ext <- ext(map_proj)
+  
+  # Download contextual basemaps
+  # Grab continent boundaries
+  world_borders <- ne_countries(scale = 50, returnclass = "sf")
+  world_borders_proj <- st_transform(world_borders, target_crs)
+  
+  
+  # Set up google font Montserrat for clean look
+  font_add_google(name = "Montserrat", family = "Montserrat")
+  showtext_auto()
+  
+  # Initialise ggplot with the raster
+  pretty_map <- ggplot() +
+    geom_sf(data = world_borders_proj, fill = NA, color = "grey70", linewidth = 0.3) +
+    geom_spatraster(data = map_proj)
+  
+  # Add rivers if TRUE
+  if (add_rivers) {
+    message("Downloading and adding river networks...")
+    rivers <- ne_download(scale = 50, type = 'rivers_lake_centerlines',
+                          category = 'physical', returnclass = "sf")
+    rivers_proj <- st_transform(rivers, target_crs)
+    pretty_map <- pretty_map + geom_sf(data = rivers_proj, color = "dodgerblue",
+                                       linewidth = 0.4, alpha = 0.7)
+  }
+  
+  
+  # Add aesthetics
+  pretty_map <- pretty_map +
+    scale_fill_viridis_c(
+      option = colour_palette,
+      name = "Habitat\nSuitability",
+      limits = c(0, 1),
+      breaks = seq(0, 1, 0.2),
+      na.value = "transparent",
+      guide = guide_colorbar(barwidth = 1.5, barheight = 15, title.position = "top")
+    ) +
+    # Add cartographic elements
+    annotation_north_arrow(location = "tl", which_north = "true",
+                           style = north_arrow_fancy_orienteering()) +
+    annotation_scale(location = "bl", width_hint = 0.25) +
+    # Use raster's region bounds
+    coord_sf(xlim = c(map_ext[1], map_ext[2]),
+             ylim = c(map_ext[3], map_ext[4]),
+             expand = FALSE) +
+    # Add labels
+    labs(
+      title = expression(paste("Predicted distribution of ", italic(species_name))),
+      subtitle = paste("Projection:", target_crs),
+      x = "Longitude",
+      y = "Latitude",
+      caption = "Data acquired from GBIF and WorldClim"
+    ) +
+    theme_minimal(base_size = 12, base_family = "Montserrat") +
+    theme(
+      # Title/subtitle spacing
+      plot.title = element_text(face = "bold", size = 16, hjust = 0.5, margin = margin(b = 10)),
+      plot.subtitle = element_text(size = 12, hjust = 0.5, color = "grey40", margin = margin(b = 8)),
+      plot.caption = element_text(size = 9, color = "grey50", hjust = 1, family = "Montserrat"),
+      
+      # Axis title spacing
+      axis.title.x = element_text(margin = margin(t = 12), size = 11),
+      axis.title.y = element_text(margin = margin(t = 12), size = 11),
+      
+      # Remove grid lines 
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA),
+      
+      # Legend styling
+      legend.position = "right",
+      legend.title = element_text(size = 11, face = "bold", family = "Montserrat"),
+      legend.text = element_text(size = 9, family = "Montserrat"),
+    )
+  
+  # Save map automatically
+  ggsave(here(file.path("outputs", "maps", file_name)), 
+         pretty_map, 
+         width = 7, height = 6, dpi = 300, bg = "white")
+  
+  return(pretty_map)
+  
+}
+
+
+
+
+# ==============================================================================================================
+#                                               --- TASK 5 EXECUTION ---
+# ==============================================================================================================
+
+# Store present cont. suitability map for your species 1
+mistletoe_present_map <- sdm_results$maps[[sp1]]$continuous_map
+
+# Run make_pretty_map() function
+final_mistletoe_map <- make_pretty_map(
+  mistletoe_present_map, 
+  sp1,
+  "EPSG:3035",
+  "inferno",
+  add_rivers = FALSE,
+  "mistletoe_present_map.pdf")
+
+# View map
+print(final_mistletoe_map)
+
 
 
 
