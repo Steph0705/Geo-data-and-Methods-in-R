@@ -915,8 +915,8 @@ make_pretty_map <- function(suitability_map,
     rivers <- ne_download(scale = 50, type = 'rivers_lake_centerlines',
                           category = 'physical', returnclass = "sf")
     rivers_proj <- st_transform(rivers, target_crs)
-    pretty_map <- pretty_map + geom_sf(data = rivers_proj, color = "dodgerblue",
-                                       linewidth = 0.4, alpha = 0.7)
+    pretty_map <- pretty_map + geom_sf(data = rivers_proj, color = "white",
+                                       linewidth = 0.475, alpha = 0.7)
   }
   
   
@@ -994,7 +994,7 @@ final_mistletoe_map <- make_pretty_map(
   sp1,
   "EPSG:4326",
   "inferno",
-  add_rivers = FALSE,
+  add_rivers = TRUE,
   "mistletoe_present_map.pdf")
 
 # View map
@@ -1010,8 +1010,8 @@ final_oak_map <- make_pretty_map(
   sp2,
   "EPSG:4326",
   "inferno",
-  add_rivers = FALSE,
-  "mistletoe_present_map.pdf")
+  add_rivers = TRUE,
+  "oak_present_map.pdf")
 
 print(final_oak_map)
 
