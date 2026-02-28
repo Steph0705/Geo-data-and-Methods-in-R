@@ -1,5 +1,5 @@
 # Stephanie Pearce
-# Data accessed: 27/02/2026 
+# Data accessed: 28/02/2026 
 
 # ==============================================================================================================
 #                                               --- START-UP ---
@@ -13,15 +13,18 @@
 #  "sysfonts",
 #  "showtext",
 #  "here",
-#  "terra", 
+#  "terra",
+#  "tidyterra",
 #  "geodata", 
 #  "rnaturalearth", 
 #  "rnaturalearthdata",
-##  "dismo", 
+#  "dismo", 
 #  "tidyverse", 
 #  "rgbif", 
 #  "raster",
-#  "caret"
+#  "caret",
+#  "sf",
+#  "ggspatial"
 #))
 
 # Load packages
@@ -29,6 +32,7 @@ library(dplyr)
 library(ggplot2)
 library(here)
 library(terra)
+library(tidyterra)
 library(geodata)
 library(rnaturalearth)
 library(dismo)
@@ -36,7 +40,10 @@ library(tidyr)
 library(rgbif)
 library(sysfonts)
 library(showtext)
+library(raster)
 library(caret)
+library(sf)
+library(ggspatial)
 
 # Ensure reproducibility with random sampling
 set.seed(123)
@@ -867,18 +874,10 @@ overlap_future <- calculate_and_map_overlap(sp1, sp2, future_results)
 #                                              --- TASK 5 ---
 # ==============================================================================================================
 
-# 
-
-
-
-
-
-
-
-
-
-
-
+# This task will involve creating a pretty map function which can be used to map a
+# publication-ready map to any of the suitability maps from the output.
+# The user will be able to pick was CRS to use, what colour-blind friendly palette,
+# and whether they want to add rivers/streams or not.
 
 
 
