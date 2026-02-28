@@ -316,7 +316,7 @@ fit_eval_glm <- function(species_data, bioclim_crop, user_predictors = NULL) {
   # If no variables provided, run bioclim_selection() function
   if (is.null(current_vars)) {
     message("Calculating most parsimonious model...")
-    # Call function to check for multicollinearity and perform stepwise AIC selection
+    # Call function to check for multicollinearity and perform stepwise BIC selection
     current_vars <- bioclim_selection(train_data)
     
   } else {
@@ -899,13 +899,14 @@ make_pretty_map <- function(suitability_map,
   world_borders_proj <- st_transform(world_borders, target_crs)
   
   
+  # Making map
   # Set up google font Montserrat for clean look
   font_add_google(name = "Montserrat", family = "Montserrat")
   showtext_auto()
   
   # Initialise ggplot with the raster
   pretty_map <- ggplot() +
-    geom_sf(data = world_borders_proj, fill = NA, color = "grey70", linewidth = 0.3) +
+    geom_sf(data = world_borders_proj, fill = NA, color = "grey90", linewidth = 0.3) +
     geom_spatraster(data = map_proj)
   
   # Add rivers if TRUE
@@ -939,7 +940,7 @@ make_pretty_map <- function(suitability_map,
              expand = FALSE) +
     # Add labels
     labs(
-      title = expression(paste("Predicted distribution of ", italic(species_name))),
+      title = bquote("Predicted distribution of" ~ italic(.(species_name))),
       subtitle = paste("Projection:", target_crs),
       x = "Longitude",
       y = "Latitude",
@@ -991,7 +992,7 @@ mistletoe_present_map <- sdm_results$maps[[sp1]]$continuous_map
 final_mistletoe_map <- make_pretty_map(
   mistletoe_present_map, 
   sp1,
-  "EPSG:3035",
+  "EPSG:4326",
   "inferno",
   add_rivers = FALSE,
   "mistletoe_present_map.pdf")
@@ -1000,6 +1001,19 @@ final_mistletoe_map <- make_pretty_map(
 print(final_mistletoe_map)
 
 
+# Can do the exact same thing for species 2!
+# Store present cont. suitability map for your species 2
+oak_present_map <- sdm_results$maps[[sp2]]$continuous_map
+
+final_oak_map <- make_pretty_map(
+  oak_present_map, 
+  sp2,
+  "EPSG:4326",
+  "inferno",
+  add_rivers = FALSE,
+  "mistletoe_present_map.pdf")
+
+print(final_oak_map)
 
 
 
