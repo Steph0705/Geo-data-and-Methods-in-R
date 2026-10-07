@@ -6,7 +6,7 @@ This repository contains a modular, reproducible pipeline for Species Distributi
 The pipeline handles data acquisition (GBIF, WorldClim, CMIP6), data cleaning (spatial thinning, ocean filtering), statistical modeling (GLMs with stepwise BIC variable selection), and publication-ready cartography.
 
 ## **Installation**
-To ensure reproducibility, this project uses the renv package to manage dependencies.
+To ensure reproducibility, this project uses the renv package to manage dependencies. **R Version: 4.5.2**
 
 - _Option 1_: Restore Environment using renv (Recommended)
 1. Clone the repository and open the R project.
